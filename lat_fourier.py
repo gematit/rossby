@@ -21,14 +21,14 @@ try:
     calendar = nc_dataset.variables['time'].calendar
 except:
     calendar = 'standard'
-nc_dataset.close()
 
 wavenumbers = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
 
 print("Start calculating")
 for time_i in range(time_data.size):
     for lat_i in range(lat_data.size):
-        lat_values = zg_data[time_i, lat_i, :]
+        zg_data = np.array(nc_dataset.variables[var_name][time_i])
+        lat_values = zg_data[lat_i, :]
         spectral_density = rfft(lat_values - np.mean(lat_values))
         peaks,_ = find_peaks(np.abs(spectral_density))
         for i in range(num_harmonics):
@@ -71,6 +71,7 @@ for i, var in enumerate(vars_out):
     var.missing_value = np.nan
 
 out_dataset.close()
+nc_dataset.close()
 
 
 
