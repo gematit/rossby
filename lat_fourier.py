@@ -6,7 +6,7 @@ from netCDF4 import Dataset
 from time import time, ctime
 
 num_harmonics = 6
-input_file = '/Users/macbookair/Desktop/phd/era/z500_era-interim_1979-2018.nc'
+input_file = 'z500_era-interim_1979-2018.nc'
 output_file = 'test.nc'
 var_name = 'z'
 lat_name = 'lat'
