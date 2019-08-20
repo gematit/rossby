@@ -8,9 +8,10 @@ from time import time, ctime
 num_harmonics = 6
 input_file = '/Users/macbookair/Desktop/phd/era/z500_era-interim_1979-2018.nc'
 output_file = 'test.nc'
-var_name = 'zg'
+var_name = 'z'
 lat_name = 'lat'
 
+print("Start reading")
 nc_dataset = Dataset(input_file, 'r')
 zg_data = np.array(nc_dataset.variables[var_name])
 time_data = np.array(nc_dataset.variables['time'])
@@ -24,6 +25,7 @@ nc_dataset.close()
 
 wavenumbers = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
 
+print("Start calculating")
 for time_i in range(time_data.size):
     for lat_i in range(lat_data.size):
         lat_values = zg_data[time_i, lat_i, :]
