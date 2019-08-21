@@ -72,14 +72,3 @@ for i, var in enumerate(vars_out):
 
 out_dataset.close()
 nc_dataset.close()
-
-
-
-
-
-
-
-
-
-
-
