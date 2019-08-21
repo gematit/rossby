@@ -42,9 +42,10 @@ def send_report(e_mail=None, subject='Report', log_name=None):
             msg.set_content('Log file {} doesn\'t exist or isn\'t readable '.format(log_name) +
                             chr(0x1F914) +
                             signature)
-        msg.set_content('THE LAST 10 LINES OF FILE {}:\n'.format(log_name) +
-                        Popen('tail {}'.format(log_name), shell=True, stdout=PIPE).stdout.read().decode("utf-8") +
-                        signature)
+        else:
+            msg.set_content('THE LAST 10 LINES OF FILE {}:\n'.format(log_name) +
+                            Popen('tail {}'.format(log_name), shell=True, stdout=PIPE).stdout.read().decode("utf-8") +
+                            signature)
     else:
         msg.set_content(signature)
 
