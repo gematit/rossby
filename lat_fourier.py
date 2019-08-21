@@ -10,7 +10,7 @@ num_harmonics = 6
 input_file = 'z500_era-interim_1979-2018.nc'
 output_file = 'test.nc'
 var_name = 'z'
-lat_name = 'lat'
+lat_name = 'latitude'
 
 print('Start reading')
 nc_dataset = Dataset(input_file, 'r')
