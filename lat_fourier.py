@@ -1,9 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from numpy.fft import rfft
 from scipy.signal import find_peaks
 from netCDF4 import Dataset
 from time import time, ctime
+from tqdm import tqdm
+from send_report import send_report
 
 num_harmonics = 6
 input_file = 'z500_era-interim_1979-2018.nc'
@@ -11,9 +12,8 @@ output_file = 'test.nc'
 var_name = 'z'
 lat_name = 'lat'
 
-print("Start reading")
+print('Start reading')
 nc_dataset = Dataset(input_file, 'r')
-zg_data = np.array(nc_dataset.variables[var_name])
 time_data = np.array(nc_dataset.variables['time'])
 lat_data = np.array(nc_dataset.variables[lat_name])
 time_units = nc_dataset.variables['time'].units
@@ -24,8 +24,8 @@ except:
 
 wavenumbers = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
 
-print("Start calculating")
-for time_i in range(time_data.size):
+print('Start calculating')
+for time_i in tqdm(range(time_data.size)):
     for lat_i in range(lat_data.size):
         zg_data = np.array(nc_dataset.variables[var_name][time_i])
         lat_values = zg_data[lat_i, :]
@@ -72,3 +72,5 @@ for i, var in enumerate(vars_out):
 
 out_dataset.close()
 nc_dataset.close()
+
+send_report(e_mail='timazhev@ifaran.ru')
