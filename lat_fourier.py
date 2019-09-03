@@ -46,6 +46,7 @@ def get_latitude_name(dataset: Dataset):
                 dataset.variables[var].long_name.lower() in possible_names or \
                 dataset.variables[var].units.lower() in possible_units:
             return var
+        
     return None
 
 
