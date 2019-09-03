@@ -8,12 +8,9 @@ from os.path import isfile
 from os import remove
 from send_report import send_report
 
-
 num_harmonics = 6
-input_file = 'z500_era-interim_1979-2018.nc'
+input_file = '/Volumes/My Book/DATA/Z500_ERA_fullfile.nc'
 output_file = 'test.nc'
-var_name = 'z'
-lat_name = 'latitude'
 log_name = 'lat_fourier.log'
 
 
@@ -23,15 +20,76 @@ def write_log(message):
         log_file.write(message)
 
 
+def get_geopotential_name(dataset: Dataset):
+    possible_names = ['z', 'zg', 'hgt', 'geopotential', 'geopotential_height']
+    variables = list(dataset.variables)
+    for var in variables:
+        if var.lower() in possible_names:
+            return var
+    for var in variables:
+        if dataset.variables[var].standard_name.lower() in possible_names or \
+                dataset.variables[var].long_name.lower() in possible_names:
+            return var
+    return None
+
+
+def get_latitude_name(dataset: Dataset):
+    possible_names = ['lat', 'latitude']
+    possible_units = ['degrees_north', 'degrees north', 'degrees_south', 'degrees south']
+    variables = list(dataset.variables)
+    for var in variables:
+        if var.lower() in possible_names:
+            return var
+    for var in variables:
+        if dataset.variables[var].axis.lower() == 'y' or \
+                dataset.variables[var].standard_name.lower() in possible_names or \
+                dataset.variables[var].long_name.lower() in possible_names or \
+                dataset.variables[var].units.lower() in possible_units:
+            return var
+    return None
+
+
 def calculate():
     if isfile(log_name):
         remove(log_name)
 
+    transpose = False
     write_log('Start reading\n')
     nc_dataset = Dataset(input_file, 'r')
+
+    lat_name = get_latitude_name(nc_dataset)
+    if lat_name is None:
+        write_log('Can\'t find latitude\n')
+        nc_dataset.close()
+        return
+
+    var_name = get_geopotential_name(nc_dataset)
+    if var_name is None:
+        write_log('Can\'t find geopotential\n')
+        nc_dataset.close()
+        return
+
+    if nc_dataset.variables[var_name].ndim != 3:
+        write_log('Input file should contain 3 dimensions: time, latitude and longitude\n')
+        nc_dataset.close()
+        return
+
+    if nc_dataset.variables[var_name].shape[0] != nc_dataset.variables['time'].size:
+        write_log('Time isn\'t the first dimension of the variable. Check it.\n')
+        nc_dataset.close()
+        return
+
+    if nc_dataset.variables[var_name].shape[1] != nc_dataset.variables[lat_name].size:
+        transpose = True
+
+
+
+
     time_data = np.array(nc_dataset.variables['time'])
     lat_data = np.array(nc_dataset.variables[lat_name])
     time_units = nc_dataset.variables['time'].units
+
+
     try:
         calendar = nc_dataset.variables['time'].calendar
     except:
@@ -43,7 +101,10 @@ def calculate():
     for time_i in tqdm(range(time_data.size)):
         for lat_i in range(lat_data.size):
             zg_data = np.array(nc_dataset.variables[var_name][time_i])
-            lat_values = zg_data[lat_i, :]
+            if transpose:
+                lat_values = zg_data[:, lat_i]
+            else:
+                lat_values = zg_data[lat_i, :]
             spectral_density = rfft(lat_values - np.mean(lat_values))
             peaks, _ = find_peaks(np.abs(spectral_density))
             for i in range(num_harmonics):
