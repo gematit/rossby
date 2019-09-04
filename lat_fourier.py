@@ -17,7 +17,7 @@ log_name = 'lat_fourier.log'
 def write_log(message):
     print(message)
     with open(log_name, 'a') as log_file:
-        log_file.write(message)
+        log_file.write(message + '\n')
 
 
 def get_geopotential_name(dataset: Dataset):
@@ -46,7 +46,7 @@ def get_latitude_name(dataset: Dataset):
                 dataset.variables[var].long_name.lower() in possible_names or \
                 dataset.variables[var].units.lower() in possible_units:
             return var
-        
+
     return None
 
 
@@ -55,50 +55,46 @@ def calculate():
         remove(log_name)
 
     transpose = False
-    write_log('Start reading\n')
+    write_log('Start reading')
     nc_dataset = Dataset(input_file, 'r')
 
     lat_name = get_latitude_name(nc_dataset)
     if lat_name is None:
-        write_log('Can\'t find latitude\n')
+        write_log('Can\'t find latitude')
         nc_dataset.close()
         return
 
     var_name = get_geopotential_name(nc_dataset)
     if var_name is None:
-        write_log('Can\'t find geopotential\n')
+        write_log('Can\'t find geopotential')
         nc_dataset.close()
         return
 
     if nc_dataset.variables[var_name].ndim != 3:
-        write_log('Input file should contain 3 dimensions: time, latitude and longitude\n')
+        write_log('Input file should contain 3 dimensions: time, latitude and longitude')
         nc_dataset.close()
         return
 
     if nc_dataset.variables[var_name].shape[0] != nc_dataset.variables['time'].size:
-        write_log('Time isn\'t the first dimension of the variable. Check it.\n')
+        write_log('Time isn\'t the first dimension of the variable. Check it.')
         nc_dataset.close()
         return
 
     if nc_dataset.variables[var_name].shape[1] != nc_dataset.variables[lat_name].size:
         transpose = True
 
-
-
-
     time_data = np.array(nc_dataset.variables['time'])
     lat_data = np.array(nc_dataset.variables[lat_name])
     time_units = nc_dataset.variables['time'].units
 
-
-    try:
+    if 'calendar' in nc_dataset.variables['time'].ncattrs():
         calendar = nc_dataset.variables['time'].calendar
-    except:
+    else:
         calendar = 'standard'
 
     wavenumbers = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
 
-    write_log('Start calculating\n')
+    write_log('Start calculating')
     for time_i in tqdm(range(time_data.size)):
         for lat_i in range(lat_data.size):
             zg_data = np.array(nc_dataset.variables[var_name][time_i])
@@ -112,7 +108,7 @@ def calculate():
                 if i + 1 in peaks:
                     wavenumbers[i, time_i, lat_i] = i + 1
 
-    write_log('Start writing\n')
+    write_log('Start writing')
     out_dataset = Dataset(output_file, 'w', format='NETCDF4_CLASSIC')
 
     out_dataset.description = 'Rossby waves with n=1-6'
@@ -152,7 +148,7 @@ def calculate():
     out_dataset.close()
     nc_dataset.close()
 
-    write_log('Success\n')
+    write_log('Success')
 
 
 try:
