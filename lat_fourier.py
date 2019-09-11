@@ -140,6 +140,7 @@ def calculate(input_file, output_file, log_name, num_harmonics):
 
     write_log('Start writing', log_name)
     write_result(output_file, calendar, lat_data, time_data, time_units, wavenumbers, num_harmonics)
+
     nc_dataset.close()
 
     write_log('Success', log_name)

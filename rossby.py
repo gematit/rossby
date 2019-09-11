@@ -1,6 +1,6 @@
 import argparse
 from send_report import send_report
-from lat_fourier import *
+from lat_fourier import calculate, write_log
 
 
 if __name__ == '__main__':
