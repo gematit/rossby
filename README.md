@@ -17,14 +17,14 @@
   
 ## Examples
 
-###The easiest way
+### The easiest way
 
 ``python rossby.py --input /path/to/file.nc``
 
 Performs Fourier transform on geopotential in ``/path/to/file.nc``, writes the result to
 ``/path/to/file.nc__calculated.nc``, log to ``/path/to/lat_fourier.log``.
 
-###More complicated way
+### More complicated way
 
 ``python rossby.py --input /path/to/file.nc --output /path/to/output_file.nc
 --log /path/to/log_file.log``
@@ -32,7 +32,7 @@ Performs Fourier transform on geopotential in ``/path/to/file.nc``, writes the r
 Performs Fourier transform on geopotential in ``/path/to/file.nc``, writes the result to
 ``/path/to/output_file.nc``, log to ``/path/to/log_file.log``.
 
-###The best way
+### The best way
 
 ``python rossby.py --input /path/to/file.nc --output /path/to/output_file.nc
 --log /path/to/log_file.log --e-mail mail@domain.com``
