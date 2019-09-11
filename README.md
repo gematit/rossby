@@ -1,7 +1,7 @@
 # Rossby
 
 ## Usage
-``rossby.py [-h] --input INPUT [--output OUTPUT] [--n N] [--log LOG] [--e-mail E_MAIL]``
+``python rossby.py [-h] --input INPUT [--output OUTPUT] [--n N] [--log LOG] [--e-mail E_MAIL]``
 
 ``  -h, --help       show help``
 
