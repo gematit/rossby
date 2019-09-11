@@ -22,7 +22,7 @@
 ``python rossby.py --input /path/to/file.nc``
 
 Performs Fourier transform on geopotential in ``/path/to/file.nc``, writes the result to
-``/path/to/file.nc__calculated.nc``, log to ``/path/to/lat_fourier.log``.
+``/path/to/file.nc_calculated.nc``, log to ``/path/to/lat_fourier.log``.
 
 ### More complicated way
 
