@@ -7,6 +7,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Calculate Rossby wavenumbers')
     parser.add_argument('--input', help='Input file name', required=True)
     parser.add_argument('--output', help='Output file name', required=False)
+    parser.add_argument('--output-spectral', help='Output file name fo spectral density', required=False)
     parser.add_argument('--n', help='Number of harmonics', required=False)
     parser.add_argument('--log', help='Log file', required=False)
     parser.add_argument('--e-mail', help='E-mail', required=False)
