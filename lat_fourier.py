@@ -1,17 +1,10 @@
 import numpy as np
+import logging
 from numpy.fft import rfft
 from scipy.signal import find_peaks
 from netCDF4 import Dataset
 from time import time, ctime
 from tqdm import tqdm
-from os.path import isfile
-from os import remove
-
-
-def write_log(message, log_name):
-    print(message)
-    with open(log_name, 'a') as log_file:
-        log_file.write(message + '\n')
 
 
 def get_geopotential_name(dataset: Dataset):
@@ -43,27 +36,27 @@ def get_latitude_name(dataset: Dataset):
     return None
 
 
-def get_attributes(dataset: Dataset, log_name):
+def get_attributes(dataset: Dataset):
     transpose = False
     lat_name = get_latitude_name(dataset)
     if lat_name is None:
-        write_log('Can\'t find latitude', log_name)
+        logging.critical('Can\'t find latitude')
         dataset.close()
         return
 
     var_name = get_geopotential_name(dataset)
     if var_name is None:
-        write_log('Can\'t find geopotential', log_name)
+        logging.critical('Can\'t find geopotential')
         dataset.close()
         return
 
     if dataset.variables[var_name].ndim != 3:
-        write_log('Input file should contain 3 dimensions: time, latitude and longitude', log_name)
+        logging.critical('Input file should contain 3 dimensions: time, latitude and longitude')
         dataset.close()
         return
 
     if dataset.variables[var_name].shape[0] != dataset.variables['time'].size:
-        write_log('Time isn\'t the first dimension of the variable. Check it.', log_name)
+        logging.critical('Time isn\'t the first dimension of the variable. Check it.')
         dataset.close()
         return
 
@@ -148,19 +141,17 @@ def write_result_spectral(output_file_spectral, calendar, lat_data, time_data, t
     out_dataset.close()
 
 
-def calculate(input_file, output_file, log_name, num_harmonics, output_file_spectral):
-    if isfile(log_name):
-        remove(log_name)
-
-    write_log('Start reading', log_name)
+def calculate(input_file, output_file, num_harmonics, output_file_spectral):
+    logging.info('Start reading')
     nc_dataset = Dataset(input_file, 'r')
-    var_name, lat_data, time_data, time_units, calendar, transpose = get_attributes(nc_dataset, log_name)
+    var_name, lat_data, time_data, time_units, calendar, transpose = get_attributes(nc_dataset)
 
     wavenumbers = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
     if output_file_spectral is not None:
-        spectral_out = np.full(shape=(time_data.size, lat_data.size, num_harmonics+2), fill_value=np.nan, dtype=np.float32)
+        spectral_out = np.full(shape=(time_data.size, lat_data.size, num_harmonics + 2), fill_value=np.nan, dtype=np.float32)
 
-    write_log('Start calculating', log_name)
+    # write_log('Start calculating', log_name)
+    logging.info('Start calculating')
     for time_i in tqdm(range(time_data.size)):
         zg_data = np.array(nc_dataset.variables[var_name][time_i])
         for lat_i in range(lat_data.size):
@@ -176,12 +167,12 @@ def calculate(input_file, output_file, log_name, num_harmonics, output_file_spec
                 if i + 1 in peaks:
                     wavenumbers[i, time_i, lat_i] = i + 1
 
-    write_log('Start writing wavenumbers', log_name)
+    logging.info('Start writing wavenumbers')
     write_result(output_file, calendar, lat_data, time_data, time_units, wavenumbers, num_harmonics)
     if output_file_spectral is not None:
-        write_log('Start writing spectral density', log_name)
+        logging.info('Start writing spectral density')
         write_result_spectral(output_file_spectral, calendar, lat_data, time_data, time_units, spectral_out, num_harmonics)
 
     nc_dataset.close()
 
-    write_log('Success', log_name)
+    logging.info('Success')
