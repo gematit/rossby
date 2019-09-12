@@ -114,7 +114,41 @@ def write_result(output_file, calendar, lat_data, time_data, time_units, wavenum
     out_dataset.close()
 
 
-def calculate(input_file, output_file, log_name, num_harmonics):
+def write_result_spectral(output_file_spectral, calendar, lat_data, time_data, time_units, spectral_out, num_harmonics):
+    out_dataset = Dataset(output_file_spectral, 'w', format='NETCDF4_CLASSIC')
+    out_dataset.description = 'Zonal spectral density for n up to {}'.format(num_harmonics + 1)
+    out_dataset.history = 'Created ' + ctime(time())
+    out_dataset.Conventions = 'CF-1.6'
+    out_dataset.createDimension('lat', lat_data.size)
+    out_dataset.createDimension('time', None)
+    out_dataset.createDimension('wavenumber', num_harmonics + 2)
+    lat_output = out_dataset.createVariable('lat', lat_data.dtype, ('lat',))
+    lat_output[:] = lat_data
+    time_output = out_dataset.createVariable('time', time_data.dtype, ('time',))
+    time_output[:] = time_data
+    wavenumber_output = out_dataset.createVariable('wavenumber', np.int8, ('wavenumber',))
+    wavenumber_output[:] = np.arange(num_harmonics + 2, dtype=np.int8)
+    var = out_dataset.createVariable('spectral_density', np.float32, ('time', 'lat', 'wavenumber'), fill_value=np.nan)
+    lat_output.units = 'degrees_north'
+    lat_output.long_name = 'latitude'
+    lat_output.standard_name = 'latitude'
+    lat_output.axis = 'Y'
+    time_output.units = time_units
+    time_output.long_name = 'time'
+    time_output.standard_name = 'time'
+    time_output.caledar = calendar
+    time_output.axis = 'T'
+    wavenumber_output.long_name = 'wavenumber'
+    wavenumber_output.units = 'zonal wavenumber'
+    wavenumber_output.axis = 'X'
+    var[0:len(time_data), :, :] = spectral_out[:, :, :]
+    var.long_name = 'spectral density'
+    var.units = 'magnitude'
+    var.missing_value = np.nan
+    out_dataset.close()
+
+
+def calculate(input_file, output_file, log_name, num_harmonics, output_file_spectral):
     if isfile(log_name):
         remove(log_name)
 
@@ -123,6 +157,8 @@ def calculate(input_file, output_file, log_name, num_harmonics):
     var_name, lat_data, time_data, time_units, calendar, transpose = get_attributes(nc_dataset, log_name)
 
     wavenumbers = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
+    if output_file_spectral is not None:
+        spectral_out = np.full(shape=(time_data.size, lat_data.size, num_harmonics+2), fill_value=np.nan, dtype=np.float32)
 
     write_log('Start calculating', log_name)
     for time_i in tqdm(range(time_data.size)):
@@ -133,13 +169,18 @@ def calculate(input_file, output_file, log_name, num_harmonics):
             else:
                 lat_values = zg_data[lat_i, :]
             spectral_density = rfft(lat_values - np.mean(lat_values))
+            if output_file_spectral is not None:
+                spectral_out[time_i, lat_i, 0:num_harmonics+2] = np.abs(spectral_density[0:num_harmonics+2])
             peaks, _ = find_peaks(np.abs(spectral_density))
             for i in range(num_harmonics):
                 if i + 1 in peaks:
                     wavenumbers[i, time_i, lat_i] = i + 1
 
-    write_log('Start writing', log_name)
+    write_log('Start writing wavenumbers', log_name)
     write_result(output_file, calendar, lat_data, time_data, time_units, wavenumbers, num_harmonics)
+    if output_file_spectral is not None:
+        write_log('Start writing spectral density', log_name)
+        write_result_spectral(output_file_spectral, calendar, lat_data, time_data, time_units, spectral_out, num_harmonics)
 
     nc_dataset.close()
 

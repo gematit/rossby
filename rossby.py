@@ -15,6 +15,7 @@ if __name__ == '__main__':
 
     input_file = args.input
     output_file = args.output
+    output_file_spectral = args.output_spectral
     if output_file is None:
         output_file = input_file + '_calculated.nc'
     num_harmonics = args.n
@@ -26,7 +27,7 @@ if __name__ == '__main__':
     e_mail = args.e_mail
 
     try:
-        calculate(input_file, output_file, log_name, num_harmonics)
+        calculate(input_file, output_file, log_name, num_harmonics, output_file_spectral)
     except:
         write_log('Something goes wrong', log_name)
 
