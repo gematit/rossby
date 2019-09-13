@@ -1,5 +1,6 @@
 import argparse
 import logging
+from subprocess import Popen, PIPE, STDOUT
 from send_report import send_report
 from lat_fourier import calculate
 
@@ -27,8 +28,28 @@ if __name__ == '__main__':
                         datefmt='%m/%d/%Y %H:%M:%S', filemode='w')
     logging.getLogger().addHandler(logging.StreamHandler())
 
+    nc_format = 'NETCDF3_CLASSIC'
     try:
-        calculate(input_file, output_file, num_harmonics, output_file_spectral)
+        cdo_test = Popen(['cdo', '-V'], stdout=PIPE, stderr=STDOUT)
+        cdo_out, _ = cdo_test.communicate()
+        if 'nc4' in str(cdo_out):
+            nc_format = 'NETCDF4'
+            logging.info('CDO supports netCDF-4, using netCDF4 format')
+        elif 'nc4c' in str(cdo_out):
+            nc_format = 'NETCDF4_CLASSIC'
+            logging.info('CDO supports netCDF-4 classic, using netCDF4 classic format')
+        elif 'nc' in str(cdo_out):
+            logging.info('CDO doesn\'t support netCDF-4, using netCDF3 classic format')
+        else:
+            logging.warning('CDO doesn\'t support netCDF')
+            logging.info('Using netCDF3 classic format')
+    except FileNotFoundError:
+        logging.warning('CDO is not found')
+        logging.info('Using netCDF3 classic format')
+
+
+    try:
+        calculate(input_file, output_file, num_harmonics, output_file_spectral, nc_format)
     except Exception as e:
         logging.exception(e)
 
