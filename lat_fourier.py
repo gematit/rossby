@@ -106,6 +106,7 @@ def write_result(output_file, calendar, lat_data, time_data, time_units, wavenum
         var.missing_value = np.nan
     out_dataset.close()
 
+
 def write_result_spectral(output_file_spectral, calendar, lat_data, time_data, time_units, spectral_out,
                               num_harmonics, nc_format):
     out_dataset = Dataset(output_file_spectral, 'w', format=nc_format)
