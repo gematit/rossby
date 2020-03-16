@@ -1,6 +1,6 @@
 import numpy as np
 import logging
-from numpy.fft import rfft
+from numpy.fft import rfft, fftshift, fft
 from scipy.signal import find_peaks
 from netCDF4 import Dataset
 from time import time, ctime
@@ -140,6 +140,14 @@ def write_result_spectral(output_file_spectral, calendar, lat_data, time_data, t
     var.units = 'magnitude'
     var.missing_value = np.nan
     out_dataset.close()
+
+
+def get_phase(signal):
+    shift = fftshift(fft(signal))
+    phases = np.angle(shift)
+    phases[np.abs(shift) < 1] = 0
+    result = phases[phases != 0]
+    return result[1]
 
 
 def calculate(input_file, output_file, num_harmonics, output_file_spectral, nc_format):
