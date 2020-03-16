@@ -98,7 +98,7 @@ def get_attributes(dataset: Dataset):
     return var_name, lat_data, lon_data, time_data, time_units, calendar, transpose
 
 
-def write_result(output_file, calendar, lat_data, lon_data, time_data, time_units, wavenumbers, phases, signals, num_harmonics, nc_format):
+def write_result(output_file, calendar, lat_data, lon_data, time_data, time_units, wavenumbers, phases, phases_simple, signals, total_signal, total_signal_reconstructed, num_harmonics, nc_format):
     out_dataset = Dataset(output_file, 'w', format=nc_format)
     out_dataset.description = 'Rossby waves with n=1-6'
     out_dataset.history = 'Created ' + ctime(time())
@@ -108,18 +108,26 @@ def write_result(output_file, calendar, lat_data, lon_data, time_data, time_unit
     out_dataset.createDimension('time', None)
     lat_output = out_dataset.createVariable('lat', lat_data.dtype, ('lat',))
     lat_output[:] = lat_data
-    lon_output = out_dataset.createVariable('lon', lat_data.dtype, ('lon',))
+    lon_output = out_dataset.createVariable('lon', lon_data.dtype, ('lon',))
     lon_output[:] = lon_data
     time_output = out_dataset.createVariable('time', time_data.dtype, ('time',))
     time_output[:] = time_data
+    total_signal_output = out_dataset.createVariable('Total signal', np.float32, ('time', 'lat', 'lon'), fill_value=np.nan)
+    total_signal_output[:] = total_signal[:, :, :]
+    total_signal_reconstructed_output = out_dataset.createVariable('Total signal reconstructed', np.float32,
+                                                                   ('time', 'lat', 'lon'), fill_value=np.nan)
+    total_signal_reconstructed_output[:] = total_signal_reconstructed[:, :, :]
     vars_out = []
     phases_out = []
+    phases_simple_out = []
     signals_out = []
     for i in range(num_harmonics):
         vars_out.append(
             out_dataset.createVariable('Rossby_n' + str(i + 1), np.float32, ('time', 'lat'), fill_value=np.nan))
         phases_out.append(
             out_dataset.createVariable('phase_n' + str(i + 1), np.float32, ('time', 'lat'), fill_value=np.nan))
+        phases_simple_out.append(
+            out_dataset.createVariable('phase_simple_n' + str(i + 1), np.float32, ('time', 'lat'), fill_value=np.nan))
         signals_out.append(
             out_dataset.createVariable('signal_n' + str(i + 1), np.float32, ('time', 'lat', 'lon'), fill_value=np.nan))
     lat_output.units = 'degrees_north'
@@ -149,6 +157,11 @@ def write_result(output_file, calendar, lat_data, lon_data, time_data, time_unit
         var[0:len(time_data), :] = signals[i, :, :, :]
         var.long_name = 'Signal of Rossby wave with wavenumber n=' + str(i + 1)
         var.units = 'xz'
+        var.missing_value = np.nan
+    for i, var in enumerate(phases_simple_out):
+        var[0:len(time_data), :] = phases_simple[i, :, :]
+        var.long_name = 'Phase simple of Rossby wave with wavenumber n=' + str(i + 1)
+        var.units = 'radian'
         var.missing_value = np.nan
     out_dataset.close()
 
@@ -199,6 +212,24 @@ def get_phase(signal):
         return np.nan
 
 
+def get_phase_simple(signal, lon_data, wavenumber):
+    peaks, _ = find_peaks(signal)
+    if wavenumber == 1 and peaks.size != 0:
+        if lon_data[peaks[0]] > 180:
+            return lon_data[-1] - lon_data[peaks[0]]
+        else:
+            return lon_data[peaks[0]]
+    elif wavenumber > 1:
+        if lon_data[peaks[0]] > 180 / wavenumber:
+            return lon_data[peaks[-1]]
+        else:
+            return lon_data[peaks[0]]
+    else:
+        return np.nan
+
+
+
+
 def calculate(input_file, output_file, num_harmonics, output_file_spectral, nc_format):
     logging.info('Start reading')
     nc_dataset = Dataset(input_file, 'r')
@@ -206,7 +237,10 @@ def calculate(input_file, output_file, num_harmonics, output_file_spectral, nc_f
 
     wavenumbers = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
     phases = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
+    phases_simple = np.full(shape=(num_harmonics, time_data.size, lat_data.size), fill_value=np.nan, dtype=np.float32)
     signals = np.full(shape=(num_harmonics, time_data.size, lat_data.size, lon_data.size), fill_value=np.nan, dtype=np.float32)
+    total_signal = np.full(shape=(time_data.size, lat_data.size, lon_data.size), fill_value=np.nan, dtype=np.float32)
+    total_signal_reconstructed = np.full(shape=(time_data.size, lat_data.size, lon_data.size), fill_value=np.nan, dtype=np.float32)
     if output_file_spectral is not None:
         spectral_out = np.full(shape=(time_data.size, lat_data.size, num_harmonics + 2), fill_value=np.nan, dtype=np.float32)
 
@@ -218,6 +252,7 @@ def calculate(input_file, output_file, num_harmonics, output_file_spectral, nc_f
                 lat_values = zg_data[:, lat_i]
             else:
                 lat_values = zg_data[lat_i, :]
+            total_signal[time_i, lat_i, :] = lat_values - np.mean(lat_values)
             spectral_density = rfft(lat_values - np.mean(lat_values))
             if output_file_spectral is not None:
                 spectral_out[time_i, lat_i, 0:num_harmonics+2] = np.abs(spectral_density[0:num_harmonics+2])
@@ -229,11 +264,15 @@ def calculate(input_file, output_file, num_harmonics, output_file_spectral, nc_f
                     sdd[i+1] = spectral_density[i+1]
                     signals[i, time_i, lat_i, :] = irfft(sdd)
                     phases[i, time_i, lat_i] = -np.degrees(get_phase(signals[i, time_i, lat_i, :]) / (i + 1))
+                    phases_simple[i, time_i, lat_i] = get_phase_simple(signals[i, time_i, lat_i, :], lon_data, i + 1)
+                    if phases[i, time_i, lat_i] < 0:
+                        phases[i, time_i, lat_i] += 357.5
+            total_signal_reconstructed[time_i, lat_i, :] = np.nansum(signals[:, time_i, lat_i, :], axis=0)
 
 
 
     logging.info('Start writing wavenumbers')
-    write_result(output_file, calendar, lat_data, lon_data, time_data, time_units, wavenumbers, phases, signals, num_harmonics, nc_format)
+    write_result(output_file, calendar, lat_data, lon_data, time_data, time_units, wavenumbers, phases, phases_simple, signals, total_signal, total_signal_reconstructed, num_harmonics, nc_format)
     if output_file_spectral is not None:
         logging.info('Start writing spectral density')
         write_result_spectral(output_file_spectral, calendar, lat_data, time_data, time_units, spectral_out,
